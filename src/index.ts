@@ -12,7 +12,7 @@ async function generateCompletion(prompt_val: string, apiKey: string, model_val:
       },
       body: JSON.stringify({
         model:model_val,
-        prompt:prompt_val,
+        prompt:"I want you to write PR description based on the changes made in this PR: \n \n"+prompt_val,
         temperature:temperature_val,
         max_tokens: maxTokens,
         top_p: topP,
