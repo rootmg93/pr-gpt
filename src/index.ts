@@ -1,47 +1,85 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import axios from 'axios';
+import fetch from 'node-fetch';
 
-async function run(): Promise<void> {
+async function generateCompletion(prompt: string, apiKey: string) {
   try {
-    const openaiApiKey: string = core.getInput('openai_api_key', { required: true });
-    const githubToken: string = core.getInput('github_token', { required: true });
+    const response = await fetch("https://api.openai.com/v1/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "text-davinci-003",
+        prompt,
+        temperature: 1,
+        max_tokens: 256,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+      }),
+    });
 
+    if (!response.ok) {
+      throw new Error(`OpenAI API responded with status ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    return responseData.choices[0].text.trim();
+  } catch (error: any) {
+    core.setFailed(`Error during completion generation: ${error.message}`);
+  }
+}
+
+async function run() {
+  try {
+    const githubToken = core.getInput('github_token');
+    const openaiApiKey = core.getInput('openai_api_key');
     const octokit = github.getOctokit(githubToken);
 
     const { owner, repo, number } = github.context.issue;
 
-    const filesResponse = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: number });
+    console.log('Owner:', owner);
+    console.log('Repo:', repo);
+    console.log('Number:', number);
+
+    const filesResponse = await octokit.rest.pulls.listFiles({
+      owner,
+      repo,
+      pull_number: number
+    });
 
     const fileDescriptionsPromises = filesResponse.data.map(async (file: any) => {
-      const response = await axios.post('https://api.openai.com/v1/engines/davinci-codex/completions', {
-        prompt: `Describe the following code:\n\n${file.patch}`,
-        max_tokens: 60,
-        temperature: 0.2,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`
-        }
+      console.log('Filename:', file.filename);
+
+      const fileContentResponse = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path: file.filename,
+        ref: 'refs/pull/' + number + '/head'
       });
 
-      return `**${file.filename}**:\n\n${response.data.choices[0].text}`;
+      console.log('Ref:', 'refs/pull/' + number + '/head');
+
+      const fileContent = Buffer.from((fileContentResponse.data as any).content, 'base64').toString('utf8');
+      const prDescription = await generateCompletion(fileContent, openaiApiKey);
+
+      return `- ${file.filename}: ${prDescription}`;
     });
 
     const fileDescriptions = await Promise.all(fileDescriptionsPromises);
 
-    await octokit.rest.issues.createComment({
+    const prDescription = fileDescriptions.join('\n');
+
+    await octokit.rest.pulls.update({
       owner,
       repo,
-      issue_number: number,
-      body: fileDescriptions.join('\n\n')
+      pull_number: number,
+      body: prDescription
     });
-
-  } catch (error) {
-    if (error instanceof Error) {
-      core.setFailed(error.message);
-    } else {
-      core.setFailed('An error occurred.');
-    }
+  } catch (error: any) {
+    core.setFailed(`Action failed with error ${error}`);
   }
 }
 
