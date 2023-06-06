@@ -3,9 +3,9 @@ name: PR Description Generation
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
 
 jobs:
   generate_pr_description:
