@@ -1,0 +1,12 @@
+name: 'Generate PR Description'
+description: 'Generates a description for a PR using GPT-3.'
+inputs:
+  openai_api_key:
+    description: 'The OpenAI API key to use for GPT-3.'
+    required: true
+  github_token:
+    description: 'The GitHub token to use for the GitHub API.'
+    required: true
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
