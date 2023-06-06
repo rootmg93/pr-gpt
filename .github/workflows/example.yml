@@ -2,4 +2,4 @@
   uses: rootmg93/pr-gpt
   with:
     openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+    github_token: ${{ secrets.TOKEN }}
