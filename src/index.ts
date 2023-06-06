@@ -40,6 +40,10 @@ async function run() {
 
     const { owner, repo, number } = github.context.issue;
 
+    console.log('Owner:', owner);
+    console.log('Repo:', repo);
+    console.log('Number:', number);
+
     const filesResponse = await octokit.rest.pulls.listFiles({
       owner,
       repo,
@@ -47,12 +51,16 @@ async function run() {
     });
 
     const fileDescriptionsPromises = filesResponse.data.map(async (file: any) => {
+      console.log('Filename:', file.filename);
+
       const fileContentResponse = await octokit.rest.repos.getContent({
         owner,
         repo,
         path: file.filename,
         ref: 'refs/pull/' + number + '/head'
       });
+
+      console.log('Ref:', 'refs/pull/' + number + '/head');
 
       const fileContent = Buffer.from((fileContentResponse.data as any).content, 'base64').toString('utf8');
       const prDescription = await generateCompletion(fileContent, openaiApiKey);

@@ -28,41 +28,73 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const github = __importStar(require("@actions/github"));
-const axios_1 = __importDefault(require("axios"));
+const node_fetch_1 = __importDefault(require("node-fetch"));
+async function generateCompletion(prompt, apiKey) {
+    try {
+        const response = await (0, node_fetch_1.default)("https://api.openai.com/v1/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                model: "text-davinci-003",
+                prompt,
+                temperature: 1,
+                max_tokens: 256,
+                top_p: 1,
+                frequency_penalty: 0,
+                presence_penalty: 0,
+            }),
+        });
+        if (!response.ok) {
+            throw new Error(`OpenAI API responded with status ${response.status}`);
+        }
+        const responseData = await response.json();
+        return responseData.choices[0].text.trim();
+    }
+    catch (error) {
+        core.setFailed(`Error during completion generation: ${error.message}`);
+    }
+}
 async function run() {
     try {
-        const openaiApiKey = core.getInput('openai_api_key', { required: true });
-        const githubToken = core.getInput('github_token', { required: true });
+        const githubToken = core.getInput('github_token');
+        const openaiApiKey = core.getInput('openai_api_key');
         const octokit = github.getOctokit(githubToken);
         const { owner, repo, number } = github.context.issue;
-        const filesResponse = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: number });
-        const fileDescriptionsPromises = filesResponse.data.map(async (file) => {
-            const response = await axios_1.default.post('https://api.openai.com/v1/engines/davinci-codex/completions', {
-                prompt: `Describe the following code:\n\n${file.patch}`,
-                max_tokens: 60,
-                temperature: 0.2,
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${openaiApiKey}`
-                }
-            });
-            return `**${file.filename}**:\n\n${response.data.choices[0].text}`;
-        });
-        const fileDescriptions = await Promise.all(fileDescriptionsPromises);
-        await octokit.rest.issues.createComment({
+        console.log('Owner:', owner);
+        console.log('Repo:', repo);
+        console.log('Number:', number);
+        const filesResponse = await octokit.rest.pulls.listFiles({
             owner,
             repo,
-            issue_number: number,
-            body: fileDescriptions.join('\n\n')
+            pull_number: number
+        });
+        const fileDescriptionsPromises = filesResponse.data.map(async (file) => {
+            console.log('Filename:', file.filename);
+            const fileContentResponse = await octokit.rest.repos.getContent({
+                owner,
+                repo,
+                path: file.filename,
+                ref: 'refs/pull/' + number + '/head'
+            });
+            console.log('Ref:', 'refs/pull/' + number + '/head');
+            const fileContent = Buffer.from(fileContentResponse.data.content, 'base64').toString('utf8');
+            const prDescription = await generateCompletion(fileContent, openaiApiKey);
+            return `- ${file.filename}: ${prDescription}`;
+        });
+        const fileDescriptions = await Promise.all(fileDescriptionsPromises);
+        const prDescription = fileDescriptions.join('\n');
+        await octokit.rest.pulls.update({
+            owner,
+            repo,
+            pull_number: number,
+            body: prDescription
         });
     }
     catch (error) {
-        if (error instanceof Error) {
-            core.setFailed(error.message);
-        }
-        else {
-            core.setFailed('An error occurred.');
-        }
+        core.setFailed(`Action failed with error ${error}`);
     }
 }
 run();
