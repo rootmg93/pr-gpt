@@ -1,12 +1,48 @@
-name: 'Generate PR Description'
-description: 'Generates a description for a PR using GPT-3.'
+name: 'Generate PR Description with GPT-4'
+description: 'This action uses GPT-4 to auto-generate the PR description of the code pushed in the branch'
 inputs:
-  openai_api_key:
-    description: 'The OpenAI API key to use for GPT-3.'
-    required: true
   github_token:
-    description: 'The GitHub token to use for the GitHub API.'
+    description: 'GitHub token'
     required: true
+  openai_api_key:
+    description: 'OpenAI API key'
+    required: true
+  model:
+    description: 'Model to use for OpenAI completion'
+    required: false
+    default: 'text-davinci-003'
+  temperature:
+    description: 'Temperature to use for OpenAI completion'
+    required: false
+    default: '1'
+  max_tokens:
+    description: 'Max tokens to use for OpenAI completion'
+    required: false
+    default: '256'
+  top_p:
+    description: 'Top p to use for OpenAI completion'
+    required: false
+    default: '1'
+  frequency_penalty:
+    description: 'Frequency penalty to use for OpenAI completion'
+    required: false
+    default: '0'
+  presence_penalty:
+    description: 'Presence penalty to use for OpenAI completion'
+    required: false
+    default: '0'
 runs:
   using: 'node12'
   main: 'dist/index.js'
+# name: 'Generate PR Description'
+# description: 'Generates a description for a PR using GPT-3.'
+# inputs:
+#   openai_api_key:
+#     description: 'The OpenAI API key to use for GPT-3.'
+#     required: true
+#   github_token:
+#     description: 'The GitHub token to use for the GitHub API.'
+#     required: true
+# runs:
+#   using: 'node12'
+#   main: 'dist/index.js'

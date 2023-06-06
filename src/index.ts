@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import fetch from 'node-fetch';
 
-async function generateCompletion(prompt_val: string, apiKey: string) {
+async function generateCompletion(prompt_val: string, apiKey: string, model_val: string, temperature_val: number, maxTokens: number, topP: number, frequencyPenalty: number, presencePenalty: number) {
   try {
     const response = await fetch("https://api.openai.com/v1/completions", {
       method: "POST",
@@ -11,13 +11,13 @@ async function generateCompletion(prompt_val: string, apiKey: string) {
         "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "text-davinci-003",
-        prompt: prompt_val,
-        temperature: 1,
-        max_tokens: 256,
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0,
+        model:model_val,
+        prompt:"I want you to write PR description based on the changes made in this PR: \n \n"+prompt_val,
+        temperature:temperature_val,
+        max_tokens: maxTokens,
+        top_p: topP,
+        frequency_penalty: frequencyPenalty,
+        presence_penalty: presencePenalty,
       }),
     });
 
@@ -36,6 +36,13 @@ async function run() {
   try {
     const githubToken = core.getInput('github_token');
     const openaiApiKey = core.getInput('openai_api_key');
+    const model = core.getInput('model');
+    const temperature = parseFloat(core.getInput('temperature'));
+    const maxTokens = parseInt(core.getInput('max_tokens'));
+    const topP = parseFloat(core.getInput('top_p'));
+    const frequencyPenalty = parseFloat(core.getInput('frequency_penalty'));
+    const presencePenalty = parseFloat(core.getInput('presence_penalty'));
+
     const octokit = github.getOctokit(githubToken);
 
     const { owner, repo, number } = github.context.issue;
@@ -63,7 +70,7 @@ async function run() {
       console.log('Ref:', 'refs/pull/' + number + '/head');
 
       const fileContent = Buffer.from((fileContentResponse.data as any).content, 'base64').toString('utf8');
-      const prDescription = await generateCompletion(fileContent, openaiApiKey);
+      const prDescription = await generateCompletion(fileContent, openaiApiKey, model, temperature, maxTokens, topP, frequencyPenalty, presencePenalty);
 
       return `- ${file.filename}: ${prDescription}`;
     });
