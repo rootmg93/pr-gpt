@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as github from '@actions/github';
 import fetch from 'node-fetch';
 
-async function generateCompletion(prompt: string, apiKey: string) {
+async function generateCompletion(prompt_val: string, apiKey: string) {
   try {
     const response = await fetch("https://api.openai.com/v1/completions", {
       method: "POST",
@@ -12,7 +12,7 @@ async function generateCompletion(prompt: string, apiKey: string) {
       },
       body: JSON.stringify({
         model: "text-davinci-003",
-        prompt,
+        prompt: prompt_val,
         temperature: 1,
         max_tokens: 256,
         top_p: 1,
